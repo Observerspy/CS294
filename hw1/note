@@ -1,0 +1,81 @@
+1. 实现behavioral cloning:
+run_expert生成state, action数据对，利用nn训练model，输出loss图
+2. 在几个例子下运行BC算法，计算reward的均值与方差，和专家策略结果对比
+3. 实现DAgger:
+run_expert生成state, action数据对
+[利用nn训练model
+重置环境，迭代：{执行a=model(s)，执行动作a获得新状态s}，返回新状态集s_new
+根据专家策略输出s_new的动作集a_new
+将s_new, a_new加入数据集，重新训练model ]
+对比DAgger和BC算法
+BC:
+data = 1000
+itera = 15000  
+max_steps = 1000
+rollouts = 10
+
+Hopper-v1 (11->3)
+mean return 173.129272231 std of return 0.950150433221
+mean return 3776.51785877 std of return 3.45247967435
+
+Ant-v1 (111->8)
+mean return 4270.08988 std of return 545.282039548
+mean return 4832.13478595 std of return 86.6941336401
+
+HalfCheetah-v1 (17->6)
+no BN and no Dropout loss: 0.0870094 
+mean return 2405.81366546 std of return 358.598144761
+with BN and with Dropout loss: 0.044548
+mean return 3717.28771261 std of return 78.637554073
+mean return 4099.91577844 std of return 80.8574188786
+
+Humanoid-v1 (376->17)
+mean return 280.768858845 std of return 44.092732834
+mean return 10401.7386441 std of return 40.9353971034
+
+(max_steps = 50)
+Reacher-v1 (11->2)
+mean return -11.7185975045 std of return 4.86645662111
+mean return -4.16785312879 std of return 1.74762339869
+
+Walker2d-v1 (17->6)
+mean return 226.625872353 std of return 8.22579097892
+mean return 5515.55381623 std of return 37.8541602931
+
+
+Dagger:
+init_data = 1000
+itera = 10 
+train_itera = 1500
+max_steps = 1000
+new data rollouts = 1
+(test)rollouts = 10
+
+HalfCheetah-v1 (17->6)
+loss: 0.0731954 mean return 3180.15737502 std of return 423.163697631
+loss: 0.0422886 mean return 3855.95309048 std of return 98.7138273307
+loss: 0.0443701 mean return 3862.92248977 std of return 105.423585986
+loss: 0.0467299 mean return 3895.31668989 std of return 89.9942325805
+...
+
+Walker2d-v1 (17->6)
+mean return 324.755526618 std of return 95.2810215524
+mean return 452.061922706 std of return 67.9068516728
+mean return 1629.94210454 std of return 549.746338191
+mean return 2038.73847179 std of return 797.657931161
+mean return 1222.54955877 std of return 1130.8384805
+mean return 1999.39570337 std of return 1091.82225485
+mean return 2224.6176697 std of return 1360.98638544
+mean return 2551.97733779 std of return 1448.9686044
+mean return 1490.17554783 std of return 833.246014325
+mean return 2028.63188284 std of return 835.628352823
+
+Humanoid-v1 (376->17)
+new data rollouts = 10
+
+
+Ant-v1 (111->8)
+mean return 4692.25460954 std of return 62.9426597402
+
+HalfCheetah-v1
+mean return 3926.8987553 std of return 113.687819668
