@@ -41,16 +41,16 @@ class MPCcontroller(Controller):
     def get_action(self, state):
         """ YOUR CODE HERE """
         """ Note: be careful to batch your simulations through the model for speed """
-        # need to be debuged
-        obs, next_obs, acs, costs = [], [], [], [] #(horizon, num_simulated_paths, n_dim)
-        ob = [obs.append(state) for _ in range(self.num_simulated_paths)]
+        ob, obs, next_obs, acs, costs = [], [], [], [], [] #(horizon, num_simulated_paths, n_dim)
+        [ob.append(state) for _ in range(self.num_simulated_paths)]
         for _ in range(self.horizon):
+            ac = []
             obs.append(ob)
-            ac = [acs.append(self.env.action_space.sample()) for _ in range(self.num_simulated_paths)]
+            [ac.append(self.env.action_space.sample()) for _ in range(self.num_simulated_paths)]
             acs.append(ac)
-            ob = self.dyn_model.predict(ob, ac)
+            ob = self.dyn_model.predict(np.array(ob), np.array(ac))
             next_obs.append(ob)
-        costs = trajectory_cost_fn(self.cost_fn, obs, acs, next_obs)
+        costs = trajectory_cost_fn(self.cost_fn, np.array(obs), np.array(acs), np.array(next_obs))
         j = np.argmin(costs, )
 
         # no batch
@@ -67,7 +67,7 @@ class MPCcontroller(Controller):
         #         next_obs.append(ob)
         #         rewards.append(rew)
         #         steps += 1
-        #         if done or steps > self.horizon:
+        #         if done or steps >= self.horizon:
         #             break
         #     path = {"state": np.array(obs),
         #             "next_state": np.array(obs),

@@ -4,18 +4,19 @@ import numpy as np
 import tqdm
 import gym
 import load_policy
+import math
 
 class Config(object):
     n_features = 11
     n_classes = 3
     dropout = 0.5
-    hidden_size_1 = 512
+    hidden_size_1 = 128
     hidden_size_2 = 256
+    hidden_size_3 = 64
     batch_size = 256
-    lr = 0.0001
-    lamda = 0.01
-    itera = 10
-    train_itera = 1000
+    lr = 0.0005
+    itera = 20
+    train_itera = 20
     envname = 'Hopper-v1'
     max_steps = 1000
 
@@ -36,47 +37,23 @@ class NN(object):
         return feed_dict
 
     def add_prediction_op(self):
-        xavier_initializer = tf.contrib.layers.xavier_initializer()
-        with tf.name_scope('w_variable'):
-            w1_init = xavier_initializer((Config.n_features, Config.hidden_size_1))
-            self.W1 = tf.Variable(w1_init, name="W1")
-            tf.summary.histogram("W1", self.W1)
-            w2_init = xavier_initializer((Config.hidden_size_1, Config.hidden_size_2))
-            self.W2 = tf.Variable(w2_init, name="W2")
-            tf.summary.histogram("W2", self.W2)
-            w3_init = xavier_initializer((Config.hidden_size_2, Config.n_classes))
-            self.W3 = tf.Variable(w3_init, name="W3")
-            tf.summary.histogram("W3", self.W3)
-        with tf.name_scope('b_variable'):
-            b1 = tf.Variable(tf.zeros(Config.hidden_size_1), name="b1")
-            tf.summary.histogram("b1", b1)
-            b2 = tf.Variable(tf.zeros(Config.hidden_size_2), name="b2")
-            tf.summary.histogram("b2", b2)
-            b3 = tf.Variable(tf.zeros(Config.n_classes), name="b3")
-            tf.summary.histogram("b3", b3)
         self.global_step = tf.Variable(0)
-
         with tf.name_scope('layer1'):
-            layer1 = tf.matmul(self.input_placeholder, self.W1) + b1
-            h_batch1 = tf.layers.batch_normalization(layer1, center=True, scale=True, training=self.is_training)
-            hidden1 = tf.nn.relu(h_batch1)
-            tf.summary.histogram('hidden1_out', hidden1)
-            h_drop1 = tf.nn.dropout(hidden1, self.dropout_placeholder)
+            hidden1 = tf.contrib.layers.fully_connected(self.input_placeholder, num_outputs=Config.hidden_size_1,
+                                            activation_fn=tf.nn.relu)
         with tf.name_scope('layer2'):
-            layer2 = tf.matmul(h_drop1, self.W2) + b2
-            h_batch2 = tf.layers.batch_normalization(layer2, center=True, scale=True, training=self.is_training)
-            hidden2 = tf.nn.relu(h_batch2)
-            tf.summary.histogram('hidden2_out', hidden2)
-            h_drop2 = tf.nn.dropout(hidden2, self.dropout_placeholder)
+            hidden2 = tf.contrib.layers.fully_connected(hidden1, num_outputs=Config.hidden_size_2,
+                                                activation_fn=tf.nn.relu)
+        with tf.name_scope('layer3'):
+            hidden3 = tf.contrib.layers.fully_connected(hidden2, num_outputs=Config.hidden_size_3,
+                                            activation_fn=tf.nn.relu)
         with tf.name_scope('output'):
-            pred = tf.matmul(h_drop2, self.W3) + b3
-            tf.summary.histogram('out', pred)
+            pred = tf.contrib.layers.fully_connected(hidden3, num_outputs=Config.n_classes,
+                                            activation_fn=None)
         return pred
 
     def add_loss_op(self, pred):
         loss = tf.losses.mean_squared_error(predictions=pred, labels=self.labels_placeholder)
-        loss += Config.lamda * (tf.nn.l2_loss(self.W1) + tf.nn.l2_loss(self.W2) +
-                        tf.nn.l2_loss(self.W3))
         tf.summary.scalar('loss', loss)
         return loss
 
@@ -179,13 +156,12 @@ def main():
             #iter
             for j in tqdm.tqdm(range(Config.itera)):
                 #train
+                X_train, y_train = shuffle(X_train, y_train)
                 i = 0
                 try:
-                    for i in range(Config.train_itera * X_train.shape[0] // Config.batch_size):
-                        # something wrong
-                        offset = (i * Config.batch_size) % (X_train.shape[0] - Config.batch_size)
+                    for i in range(int(math.ceil(Config.train_itera * X_train.shape[0] / Config.batch_size))):
+                        offset = (i * Config.batch_size) % X_train.shape[0]
                         # shuffle
-                        X_train, y_train = shuffle(X_train, y_train)
                         batch_x = X_train[offset:(offset + Config.batch_size), :]
                         batch_y = y_train[offset:(offset + Config.batch_size)]
                         loss = nn.train_on_batch(session, batch_x, batch_y, merged, train_writer, i)
@@ -218,7 +194,7 @@ def main():
                 print("iter:", j, " train finished")
                 print(Config.envname + " start")
 
-                rollouts = 10
+                rollouts = 20
                 returns = []
                 for _ in range(rollouts):
                     totalr, _ = run_env(env, nn, session)

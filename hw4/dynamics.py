@@ -1,6 +1,6 @@
 import tensorflow as tf
 import numpy as np
-
+import math
 # Predefined function to build a feedforward neural network
 def build_mlp(input_placeholder, 
               output_size,
@@ -32,22 +32,22 @@ class NNDynamicsModel():
                  ):
         """ YOUR CODE HERE """
         """ Note: Be careful about normalization """
-        self.mean_s, self.std_s, self.mean_sp, self.std_sp, self.mean_a, self.std_a = normalization
+        self.mean_s, self.std_s, self.mean_deltas, self.std_deltas, self.mean_a, self.std_a = normalization
         self.sess = sess
         self.batch_size = batch_size
         self.iter = iterations
         self.s_dim = env.observation_space.shape[0]
         self.a_dim = env.action_space.shape[0]
 
-        self.s_a = tf.placeholder(shape=[None, self.s_dim, self.a_dim], name="s_a", dtype=tf.float32)
-        self.sp = tf.placeholder(shape=[None, self.s_dim], name="sp", dtype=tf.float32)
-        self.sp_predict = build_mlp(self.s_a, self.s_dim, "NND", n_layers=n_layers, size=size,
+        self.s_a = tf.placeholder(shape=[None, self.s_dim + self.a_dim], name="s_a", dtype=tf.float32)
+        self.deltas = tf.placeholder(shape=[None, self.s_dim], name="deltas", dtype=tf.float32)
+        self.deltas_predict = build_mlp(self.s_a, self.s_dim, "NND", n_layers=n_layers, size=size,
                                  activation=activation, output_activation=output_activation)
 
-        self.loss = tf.nn.l2_loss(self.sp_predict - self.sp)
+        self.loss = tf.reduce_mean(tf.square(self.deltas_predict - self.deltas))
         self.train_op = tf.train.AdamOptimizer(learning_rate).minimize(self.loss)
 
-
+    #train deltas(s-sp) perdict deltas
     def fit(self, data):
         """
         Write a function to take in a dataset of (unnormalized)states,
@@ -67,17 +67,17 @@ class NNDynamicsModel():
         s_norm = (s - self.mean_s) / (self.std_s + 1e-7)
         a_norm = (a - self.mean_a) / (self.std_a + 1e-7)
         s_a = np.concatenate((s_norm, a_norm), axis=1)
-        sp_norm = (sp - self.mean_s) / (self.std_s + 1e-7)
+        deltas_norm = ((sp - s) - self.mean_deltas) / (self.std_deltas + 1e-7)
 
         #train
         for j in range(self.iter):
             np.random.shuffle(train_indicies)
-            for i in range(N // self.batch_size):
+            for i in range(int(math.ceil(N / self.batch_size))):
                 start_idx = i * self.batch_size % N
                 idx = train_indicies[start_idx:start_idx + self.batch_size]
                 batch_x = s_a[idx, :]
-                batch_y = sp_norm[idx, :]
-                self.sess.run(self.train_op, feed_dict={self.s_a: batch_x, self.sp: batch_y})
+                batch_y = deltas_norm[idx, :]
+                self.sess.run([self.train_op], feed_dict={self.s_a: batch_x, self.deltas: batch_y})
 
     def predict(self, states, actions):
         """ Write a function to take in a batch of (unnormalized) states
@@ -89,10 +89,10 @@ class NNDynamicsModel():
         a_norm = (actions - self.mean_a) / (self.std_a + 1e-7)
         s_a = np.concatenate((s_norm, a_norm), axis=1)
 
-        predict = self.sess.run(self.predict, feed_dict={self.s_a: s_a})
+        delta = self.sess.run(self.deltas_predict, feed_dict={self.s_a: s_a})
 
         #denormalize
-        return predict * self.std_sp + self.mean_sp + states
+        return delta * self.std_deltas + self.mean_deltas + states
 
 
 

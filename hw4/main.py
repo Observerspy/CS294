@@ -7,6 +7,7 @@ from cost_functions import cheetah_cost_fn, trajectory_cost_fn
 import time
 import logz
 import os
+import tqdm
 import copy
 import matplotlib.pyplot as plt
 from cheetah_env import HalfCheetahEnvNew
@@ -24,7 +25,7 @@ def sample(env,
     """
     paths = []
     """ YOUR CODE HERE """
-    for _ in range(num_paths):
+    for _ in tqdm.tqdm(range(num_paths)):
         ob = env.reset()
         obs, next_obs, acs, rewards, costs = [], [], [], [], []
         steps = 0
@@ -36,10 +37,10 @@ def sample(env,
             next_obs.append(ob)
             rewards.append(rew)
             steps += 1
-            if done or steps > horizon:
+            if done or steps >= horizon:
                 break
         path = {"state": np.array(obs),
-                "next_state": np.array(obs),
+                "next_state": np.array(next_obs),
                 "reward": np.array(rewards),
                 "action": np.array(acs)}
         paths.append(path)
@@ -62,11 +63,11 @@ def compute_normalization(data):
     a = np.concatenate([d["action"] for d in data])
 
     mean_obs = np.mean(s, axis=0)
-    mean_deltas = np.mean(sp, axis=0)
+    mean_deltas = np.mean(sp - s, axis=0)
     mean_action = np.mean(a, axis=0)
 
     std_obs = np.std(s, axis=0)
-    std_deltas = np.std(sp, axis=0)
+    std_deltas = np.std(sp - s, axis=0)
     std_action = np.std(a, axis=0)
 
     return mean_obs, std_obs, mean_deltas, std_deltas, mean_action, std_action
@@ -203,8 +204,8 @@ def train(env,
         paths = sample(env, mpc_controller, num_paths_onpol, env_horizon)
         data = np.concatenate((data, paths))
 
-        returns = np.concatenate([path["reward"] for path in paths])
-        costs = np.concatenate([path_cost(cost_fn, path) for path in paths])
+        returns = [np.sum(path["reward"]) for path in paths]
+        costs = [path_cost(cost_fn, path) for path in paths]
 
         # LOGGING
         # Statistics for performance of MPC policy using
@@ -239,8 +240,8 @@ def main():
     parser.add_argument('--batch_size', '-b', type=int, default=512)
     # Data collection
     parser.add_argument('--random_paths', '-r', type=int, default=10)
-    parser.add_argument('--onpol_paths', '-d', type=int, default=10)
-    parser.add_argument('--simulated_paths', '-sp', type=int, default=1000)
+    parser.add_argument('--onpol_paths', '-d', type=int, default=10)#10
+    parser.add_argument('--simulated_paths', '-sp', type=int, default=1000)#1000
     parser.add_argument('--ep_len', '-ep', type=int, default=1000)
     # Neural network architecture args
     parser.add_argument('--n_layers', '-l', type=int, default=2)
