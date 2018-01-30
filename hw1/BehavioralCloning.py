@@ -3,6 +3,9 @@ import os
 import numpy as np
 import tqdm
 import gym
+import logz
+import time
+import math
 
 class Config(object):
     n_features = 11
@@ -13,7 +16,8 @@ class Config(object):
     hidden_size_3 = 64
     batch_size = 256
     lr = 0.0005
-    itera = 15000
+    itera = 20
+    train_itera = 20
     envname = 'Hopper-v1'
     max_steps = 1000
 
@@ -44,6 +48,7 @@ class NN(object):
         with tf.name_scope('layer3'):
             hidden3 = tf.contrib.layers.fully_connected(hidden2, num_outputs=Config.hidden_size_3,
                                             activation_fn=tf.nn.relu)
+            # hidden3 = tf.nn.dropout(hidden3, self.dropout_placeholder)
         with tf.name_scope('output'):
             pred = tf.contrib.layers.fully_connected(hidden3, num_outputs=Config.n_classes,
                                             activation_fn=None)
@@ -101,6 +106,7 @@ def main():
     PROJECT_ROOT = os.path.dirname(os.path.realpath(__file__))
     train_path = os.path.join(PROJECT_ROOT, "data/"+Config.envname+".train.npz")
     train_log_path = os.path.join(PROJECT_ROOT, "log/train/")
+    logz.configure_output_dir(os.path.join(PROJECT_ROOT, "log/"+Config.envname+"_BC_"+time.strftime("%d-%m-%Y_%H-%M-%S")))
 
     X_train, y_train = load(train_path)#debug
 
@@ -124,46 +130,50 @@ def main():
             coord = tf.train.Coordinator()
             threads = tf.train.start_queue_runners(session, coord)
 
-            i = 0
-            try:
-                for i in tqdm.tqdm(range(Config.itera)):
-                    batch_x, batch_y = session.run([shuffle_batch_x, shuffle_batch_y])
-                    loss = nn.train_on_batch(session, batch_x, batch_y, merged, train_writer, i)
-                    i += 1
-                    if i % 1000 == 0:
-                        print("step:", i, "loss:", loss)
-                        saver.save(session, os.path.join(PROJECT_ROOT, "model/model_ckpt"), global_step=i)
+            for j in tqdm.tqdm(range(Config.itera)):
+                i = 0
+                try:
+                    for i in range(int(math.ceil(Config.train_itera * X_train.shape[0] / Config.batch_size))):
+                        batch_x, batch_y = session.run([shuffle_batch_x, shuffle_batch_y])
+                        loss = nn.train_on_batch(session, batch_x, batch_y, merged, train_writer, i)
+                        i += 1
+                        if i % 1000 == 0:
+                            print("step:", i, "loss:", loss)
+                            saver.save(session, os.path.join(PROJECT_ROOT, "model/model_ckpt"), global_step=i)
 
-                        print("train finished")
-                        print(Config.envname + " start")
-                        env = gym.make(Config.envname)
-                        rollouts = 20
-                        returns = []
-                        for _ in range(rollouts):
-                            obs = env.reset()
-                            done = False
-                            totalr = 0.
-                            steps = 0
-                            while not done:
-                                action = nn.get_pred(session, obs[None, :])
-                                obs, r, done, _ = env.step(action)
-                                totalr += r
-                                steps += 1
-                                # if args.render:
-                                #     env.render()
-                                if steps >= Config.max_steps:
-                                    break
-                            returns.append(totalr)
+                except tf.errors.OutOfRangeError:
+                    print("")
+                finally:
+                    coord.request_stop()
+                coord.join(threads)
 
-                        print('results for ', Config.envname)
-                        print('returns', returns)
-                        print('mean return', np.mean(returns))
-                        print('std of return', np.std(returns))
-            except tf.errors.OutOfRangeError:
-                print("done")
-            finally:
-                coord.request_stop()
-            coord.join(threads)
+                env = gym.make(Config.envname)
+                rollouts = 20
+                returns = []
+                for _ in range(rollouts):
+                    obs = env.reset()
+                    done = False
+                    totalr = 0.
+                    steps = 0
+                    while not done:
+                        action = nn.get_pred(session, obs[None, :])
+                        obs, r, done, _ = env.step(action)
+                        totalr += r
+                        steps += 1
+                        # if args.render:
+                        #     env.render()
+                        if steps >= Config.max_steps:
+                            break
+                    returns.append(totalr)
+
+                # print('results for ', Config.envname)
+                # print('returns', returns)
+                # print('mean return', np.mean(returns))
+                # print('std of return', np.std(returns))
+                logz.log_tabular('Iteration', j)
+                logz.log_tabular('AverageReturn', np.mean(returns))
+                logz.log_tabular('StdReturn', np.std(returns))
+                logz.dump_tabular()
 
 
 

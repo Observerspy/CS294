@@ -5,10 +5,12 @@ import tqdm
 import gym
 import load_policy
 import math
+import logz
+import time
 
 class Config(object):
-    n_features = 11
-    n_classes = 3
+    n_features = 17
+    n_classes = 6
     dropout = 0.5
     hidden_size_1 = 128
     hidden_size_2 = 256
@@ -17,7 +19,7 @@ class Config(object):
     lr = 0.0005
     itera = 20
     train_itera = 20
-    envname = 'Hopper-v1'
+    envname = 'Walker2d-v1'
     max_steps = 1000
 
 class NN(object):
@@ -130,6 +132,7 @@ def main():
     train_path = os.path.join(PROJECT_ROOT, "data/"+Config.envname+".train.npz")
     policy_path = os.path.join(PROJECT_ROOT, "experts/"+Config.envname+".pkl")
     train_log_path = os.path.join(PROJECT_ROOT, "log/train/")
+    logz.configure_output_dir(os.path.join(PROJECT_ROOT, "log/"+Config.envname+"_DA_"+time.strftime("%d-%m-%Y_%H-%M-%S")))
 
     X_train, y_train = load(train_path)#debug
 
@@ -167,7 +170,7 @@ def main():
                         loss = nn.train_on_batch(session, batch_x, batch_y, merged, train_writer, i)
                         i += 1
                     print("step:", i, "loss:", loss)
-                    saver.save(session, os.path.join(PROJECT_ROOT, "model/model_ckpt"), global_step=i)
+                    # saver.save(session, os.path.join(PROJECT_ROOT, "model/model_ckpt"), global_step=i)
                 except tf.errors.OutOfRangeError:
                     print("done")
                 finally:
@@ -191,8 +194,8 @@ def main():
                 print("train size :", X_train.shape, y_train.shape)
 
                 #test
-                print("iter:", j, " train finished")
-                print(Config.envname + " start")
+                # print("iter:", j, " train finished")
+                # print(Config.envname + " start")
 
                 rollouts = 20
                 returns = []
@@ -201,10 +204,16 @@ def main():
                     returns.append(totalr)
 
                 # print('results for ', Config.envname)
-                print('returns', returns)
-                print('mean return', np.mean(returns), 'std of return', np.std(returns))
+                # print('returns', returns)
+                # print('mean return', np.mean(returns), 'std of return', np.std(returns))
                 # print('mean return', np.mean(returns))
                 print()
+
+                logz.log_tabular('Iteration', j)
+                logz.log_tabular('AverageReturn', np.mean(returns))
+                logz.log_tabular('StdReturn', np.std(returns))
+                logz.dump_tabular()
+
 
 if __name__ == '__main__':
     main()

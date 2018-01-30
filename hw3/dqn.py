@@ -7,6 +7,7 @@ import tensorflow                as tf
 import tensorflow.contrib.layers as layers
 from collections import namedtuple
 from dqn_utils import *
+import logz
 
 OptimizerSpec = namedtuple("OptimizerSpec", ["constructor", "kwargs", "lr_schedule"])
 
@@ -301,10 +302,17 @@ def learn(env,
         if len(episode_rewards) > 100:
             best_mean_episode_reward = max(best_mean_episode_reward, mean_episode_reward)
         if t % LOG_EVERY_N_STEPS == 0 and model_initialized:
-            print("Timestep %d" % (t,))
-            print("mean reward (100 episodes) %f" % mean_episode_reward)
-            print("best mean reward %f" % best_mean_episode_reward)
-            print("episodes %d" % len(episode_rewards))
-            print("exploration %f" % exploration.value(t))
-            print("learning_rate %f" % optimizer_spec.lr_schedule.value(t))
+            # print("Timestep %d" % (t,))
+            # print("mean reward (100 episodes) %f" % mean_episode_reward)
+            # print("best mean reward %f" % best_mean_episode_reward)
+            # print("episodes %d" % len(episode_rewards))
+            # print("exploration %f" % exploration.value(t))
+            # print("learning_rate %f" % optimizer_spec.lr_schedule.value(t))
+            logz.log_tabular('Timestep', t)
+            logz.log_tabular('MeanReward', mean_episode_reward)
+            logz.log_tabular('BestMeanReward', best_mean_episode_reward)
+            logz.log_tabular('episodes', len(episode_rewards))
+            logz.log_tabular('exploration', exploration.value(t))
+            logz.log_tabular('learning_rate', optimizer_spec.lr_schedule.value(t))
+            logz.dump_tabular()
             sys.stdout.flush()

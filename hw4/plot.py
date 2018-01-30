@@ -62,10 +62,10 @@ def get_datasets(fpath, condition=None):
     datasets = []
     for root, dir, files in os.walk(fpath):
         if 'log.txt' in files:
-            param_path = open(os.path.join(root,'params.json'))
-            params = json.load(param_path)
-            exp_name = params['exp_name']
-            
+            # param_path = open(os.path.join(root,'params.json'))
+            # params = json.load(param_path)
+            # exp_name = params['exp_name']
+            exp_name = fpath
             log_path = os.path.join(root,'log.txt')
             experiment_data = pd.read_table(log_path)
 

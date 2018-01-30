@@ -6,7 +6,9 @@ import random
 import numpy as np
 import tensorflow as tf
 import tensorflow.contrib.layers as layers
-
+import logz
+import os
+import time
 import dqn
 from dqn_utils import *
 from atari_wrappers import *
@@ -69,7 +71,7 @@ def atari_learn(env,
         learning_starts=50000,
         learning_freq=4,
         frame_history_len=1,
-        target_update_freq=10000,
+        target_update_freq=10000,#10000
         grad_norm_clipping=10
     )
     env.close()
@@ -111,11 +113,15 @@ def get_env(seed):
     return env
 
 def main():
+    PROJECT_ROOT = os.path.dirname(os.path.realpath(__file__))
+    logz.configure_output_dir(os.path.join(PROJECT_ROOT, "log/"+"_RAM_"+time.strftime("%d-%m-%Y_%H-%M-%S")))
+
     # Run training
     seed = 0 # Use a seed of zero (you may want to randomize the seed!)
     env = get_env(seed)
     session = get_session()
     atari_learn(env, session, num_timesteps=int(4e7))
+
 
 if __name__ == "__main__":
     main()

@@ -5,6 +5,9 @@ import os.path as osp
 import random
 import numpy as np
 import tensorflow as tf
+import logz
+import os
+import time
 import tensorflow.contrib.layers as layers
 
 import dqn
@@ -122,6 +125,8 @@ def main():
 
     # Change the index to select a different game.
     task = benchmark.tasks[3]
+    PROJECT_ROOT = os.path.dirname(os.path.realpath(__file__))
+    logz.configure_output_dir(os.path.join(PROJECT_ROOT, "log/"+"_RAM_"+time.strftime("%d-%m-%Y_%H-%M-%S")))
 
     # Run training
     seed = 0 # Use a seed of zero (you may want to randomize the seed!)
