@@ -2,6 +2,7 @@ import seaborn as sns
 import pandas as pd
 import matplotlib.pyplot as plt
 import json
+import numpy as np
 import os
 
 """
@@ -49,6 +50,7 @@ the --legend flag and then provide a title for each logdir.
 """
 
 def plot_data(data, value="AverageReturn"):
+    data = [d[10:] for d in data]
     if isinstance(data, list):
         data = pd.concat(data, ignore_index=True)
     sns.set(style="darkgrid", font_scale=1.5)

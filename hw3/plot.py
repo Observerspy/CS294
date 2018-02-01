@@ -48,11 +48,12 @@ the --legend flag and then provide a title for each logdir.
 
 """
 
-def plot_data(data, value="AverageReturn"):
+def plot_data(data, value="MeanReward"):
     if isinstance(data, list):
         data = pd.concat(data, ignore_index=True)
     sns.set(style="darkgrid", font_scale=1.5)
-    sns.tsplot(data=data, time="Iteration", value=value, unit="Unit", condition="Condition")
+    sns.tsplot(data=data, time="Timestep", value=value, unit="Unit", condition="Condition")
+    sns.tsplot(data=data, time="Timestep", value="BestMeanReward", unit="Unit", condition="Condition")
     plt.legend(loc='best').draggable()
     plt.show()
 
@@ -62,9 +63,9 @@ def get_datasets(fpath, condition=None):
     datasets = []
     for root, dir, files in os.walk(fpath):
         if 'log.txt' in files:
-            param_path = open(os.path.join(root,'params.json'))
-            params = json.load(param_path)
-            exp_name = params['exp_name']
+            # param_path = open(os.path.join(root,'params.json'))
+            # params = json.load(param_path)
+            exp_name = fpath
             
             log_path = os.path.join(root,'log.txt')
             experiment_data = pd.read_table(log_path)
@@ -91,7 +92,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('logdir', nargs='*')
     parser.add_argument('--legend', nargs='*')
-    parser.add_argument('--value', default='AverageReturn', nargs='*')
+    parser.add_argument('--value', default='MeanReward', nargs='*')
     args = parser.parse_args()
 
     use_legend = False

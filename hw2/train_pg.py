@@ -353,9 +353,8 @@ def train_PG(exp_name='',
             # (mean and std) of the current or previous batch of Q-values. (Goes with Hint
             # #bl2 below.)
             b_n = sess.run(baseline_prediction, feed_dict={sy_ob_no: ob_no})
-            # b2q_mean = np.mean(b_n, axis=0) - np.mean(q_n, axis=0)
-            # b2q_std = np.std(b_n, axis=0) / np.std(q_n, axis=0)
-            # b_n = (b_n - b2q_mean) / b2q_std
+            # b_n_norm = b_n - np.mean(b_n, axis=0) / (np.std(b_n, axis=0) + 1e-7)
+            b_n = b_n * np.std(q_n, axis=0) + np.mean(q_n, axis=0)
             adv_n = q_n - b_n
         else:
             adv_n = q_n.copy()
@@ -371,7 +370,7 @@ def train_PG(exp_name='',
             # YOUR_CODE_HERE
             adv_mean = np.mean(adv_n, axis=0)
             adv_std = np.std(adv_n, axis=0)
-            adv_n = (adv_n - adv_mean) / adv_std
+            adv_n = (adv_n - adv_mean) / (adv_std + 1e-7)
 
         #====================================================================================#
         #                           ----------SECTION 5----------
@@ -389,9 +388,12 @@ def train_PG(exp_name='',
             # targets to have mean zero and std=1. (Goes with Hint #bl1 above.)
 
             # YOUR_CODE_HERE
-            # q_n_mean = np.mean(q_n, axis=0)
-            # q_n_std = np.std(q_n, axis=0)
-            # q_n = (q_n - q_n_mean) / q_n_std
+            q_n_mean = np.mean(q_n, axis=0)
+            q_n_std = np.std(q_n, axis=0)
+            q_n = (q_n - q_n_mean) / (q_n_std + 1e-7)
+            # rew_n = np.concatenate([path["reward"] for path in paths])
+            # trg_n = rew_n + b_n
+            # trg_n = (trg_n - np.mean(trg_n)) / np.std(trg_n)
             sess.run(baseline_update_op, feed_dict={sy_ob_no: ob_no, baseline_targets: q_n})
 
         #====================================================================================#
